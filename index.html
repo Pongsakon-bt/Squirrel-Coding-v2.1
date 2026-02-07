@@ -890,6 +890,16 @@
             document.getElementById('loading-spinner').classList.remove('hidden');
             document.getElementById('loading-spinner').style.display = 'flex';
             
+            // --- FIX: Trigger Audio Immediately ---
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            
+            if (state.isMusicPlaying) {
+                playBackgroundMusic();
+            }
+            // ---------------------------------------
+
             const videoElement = document.getElementById('webcam');
             const canvasElement = document.getElementById('output-canvas');
             
@@ -903,11 +913,6 @@
                 await camera.start(); 
                 canvasElement.width = 640; canvasElement.height = 360; 
                 
-                // Try to play BGM immediately on user interaction
-                if (state.isMusicPlaying) {
-                    playBackgroundMusic();
-                }
-
                 initLevel(0); 
             } catch (e) { 
                 activateManualMode();
