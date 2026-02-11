@@ -8,33 +8,80 @@
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- MediaPipe Libraries -->
+    <!-- AI Vision Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 
     <style>
-        body { font-family: 'Kanit', sans-serif; overflow: hidden; background-color: #ecfccb; height: 100%; margin: 0; }
+        /* --- Security & Selection Prevention --- */
+        body { 
+            font-family: 'Kanit', sans-serif; 
+            overflow: hidden; 
+            background-color: #ecfccb; 
+            height: 100%; 
+            margin: 0;
+            -webkit-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        /* --- Visual Styles --- */
         .mirror-mode { transform: scaleX(-1); }
         .grid-cell { transition: all 0.3s ease; box-shadow: inset 0 -4px 0 rgba(0,0,0,0.1); }
-        .squirrel-container { z-index: 20; transition: top 0.5s linear, left 0.5s linear; }
-        .squirrel-body { transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); font-size: 2.5rem; line-height: 1; display: inline-block; transform-origin: center center; }
-        .facing-right { transform: scaleX(-1); }
-        .facing-left { transform: scaleX(1); }
+        .squirrel-container { z-index: 20; transition: top 0.5s linear, left 0.5s linear; width: 80%; height: 80%; }
+        .squirrel-body { transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); width: 100%; height: 100%; display: inline-block; transform-origin: center center; }
+        
+        .facing-right { transform: scaleX(1); }
+        .facing-left { transform: scaleX(-1); }
+        
+        .character-img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 4px 4px rgba(0,0,0,0.2)); }
+        
+        #loading-screen {
+            background-image: url('https://img5.pic.in.th/file/secure-sv1/C45C9FA0-8AFB-462D-876C-8B7FAB18C816.png');
+            background-size: cover;
+            background-position: center bottom;
+            background-repeat: no-repeat;
+        }
+
+        @keyframes pop-bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); box-shadow: 0 0 25px rgba(255, 159, 67, 0.8); }
+        }
+
+        .btn-play-now {
+            background: linear-gradient(to bottom, #ff9f43, #ee5a24);
+            border: 3px solid #fff;
+            border-bottom: 6px solid #bf360c;
+            text-shadow: 1px 2px 0 rgba(0,0,0,0.2);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            animation: pop-bounce 1.5s infinite ease-in-out;
+        }
+        .btn-play-now:hover { filter: brightness(1.1); }
+        .btn-play-now:active { transform: scale(0.95) !important; border-bottom: 2px solid #bf360c; animation: none; }
+
+        .btn-how-to {
+            background: linear-gradient(to bottom, #54a0ff, #2e86de);
+            border: 2px solid #fff;
+            border-bottom: 5px solid #0984e3;
+            text-shadow: 1px 1px 0 rgba(0,0,0,0.2);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .btn-how-to:hover { transform: scale(1.05); filter: brightness(1.1); }
+        .btn-how-to:active { transform: translateY(2px); border-bottom: 2px solid #0984e3; }
+
         @keyframes bob-transform { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
-        .squirrel-inner { display: inline-block; transition: transform 0.3s; }
+        .squirrel-inner { display: block; width: 100%; height: 100%; transition: transform 0.3s; }
         .animate-bob { animation: bob-transform 1.5s infinite ease-in-out; }
         @keyframes collect-anim { 0% { transform: scale(1); } 50% { transform: scale(1.5) rotate(15deg); } 100% { transform: scale(1); } }
         .animate-collect { animation: collect-anim 0.5s ease-out; }
         
-        /* Command Queue */
         .cmd-slot { transition: all 0.2s; border: 2px dashed #cbd5e1; background-color: white; aspect-ratio: 1/1; }
         .cmd-slot.filled { border: 2px solid #84cc16; background: #f7fee7; }
         .cmd-slot.repeat-block { border: 2px solid #db2777; background: #fbcfe8; }
         .cmd-slot.active { border-color: #fbbf24; box-shadow: 0 0 10px rgba(251, 191, 36, 0.6); transform: scale(1.1); z-index: 10; }
 
-        /* Level Map */
         .level-scroll-container { overflow-x: auto; white-space: nowrap; -ms-overflow-style: none; scrollbar-width: none; }
         .level-scroll-container::-webkit-scrollbar { display: none; }
         .level-dot { width: 24px; height: 24px; border-radius: 50%; background-color: #cbd5e1; position: relative; z-index: 10; transition: all 0.3s; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; color: white; font-weight: bold; cursor: pointer; margin: 0 4px; flex-shrink: 0; }
@@ -42,7 +89,6 @@
         .level-dot.active { width: 32px; height: 32px; background-color: #fbbf24; box-shadow: 0 0 10px rgba(251, 191, 36, 0.5); transform: scale(1.2); cursor: default; }
         .level-dot.passed { background-color: #84cc16; }
 
-        /* Tools & Scrollbar */
         .editor-highlight:hover { background-color: rgba(251, 191, 36, 0.3); border: 2px dashed #fbbf24; cursor: crosshair; }
         .tool-btn.active { background-color: #d9f99d; border-color: #65a30d; transform: scale(1.05); }
         ::-webkit-scrollbar { width: 6px; }
@@ -52,36 +98,49 @@
         .bg-grass { background-color: #a3e635; background-image: radial-gradient(#84cc16 15%, transparent 16%), radial-gradient(#84cc16 15%, transparent 16%); background-size: 20px 20px; background-position: 0 0, 10px 10px; }
         .collected-nut { opacity: 0.3; transform: scale(0.8); filter: grayscale(100%); }
         
-        /* Manual Controls */
         .manual-btn { @apply bg-white border-2 border-lime-500 text-lime-700 rounded-lg hover:bg-lime-100 active:scale-95 transition shadow font-bold text-xl flex items-center justify-center; aspect-ratio: 1/1; }
+        
+        /* Story Box Style */
+        .story-box {
+            background-color: #fffbeb;
+            border-left: 5px solid #f59e0b;
+            animation: slide-in 0.5s ease-out;
+        }
+        @keyframes slide-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
-<body class="flex flex-col text-slate-800 w-full h-full">
+<body class="flex flex-col text-slate-800 w-full h-full" oncontextmenu="return false;">
 
-    <!-- Audio Element for Custom BGM -->
-    <audio id="bgm-audio" loop>
-        <source src="bgm.mp3" type="audio/mpeg">
+    <!-- 🎵 Audio System -->
+    <audio id="bgm-audio" loop preload="auto">
+        <source src="https://image2url.com/r2/default/audio/1770567023761-85df9868-a03a-4558-be83-c280029ad28c.mp3" type="audio/mpeg">
     </audio>
 
-    <!-- Loading/Start Screen -->
-    <div id="loading-screen" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-lime-50 p-4 text-center">
-        <div id="start-btn-container" class="flex flex-col items-center animate-fade-in">
-            <h1 class="text-4xl font-bold mb-4 text-lime-700">🐿️ Squirrel Coding</h1>
-            <p class="text-slate-600 mb-6 max-w-md">กดปุ่มด้านล่างเพื่อเริ่มเกม<br><span class="text-xs text-slate-400">(ระบบจะตรวจสอบกล้องอัตโนมัติ)</span></p>
-            <button onclick="startApp()" class="px-8 py-4 bg-gradient-to-r from-lime-500 to-green-600 hover:from-lime-600 hover:to-green-700 text-white font-bold rounded-full text-xl shadow-lg transform hover:scale-105 transition-all animate-bounce">
-                <i class="fas fa-play mr-2"></i> เริ่มเลย!
+    <!-- 🎬 Start Screen -->
+    <div id="loading-screen" class="absolute inset-0 z-50 flex flex-col items-center justify-end pb-8">
+        <div id="start-btn-container" class="flex flex-col items-center gap-3 animate-fade-in w-full max-w-sm px-4 mb-4">
+            <button onclick="startApp()" class="btn-play-now w-3/4 py-3 text-white font-black rounded-full text-2xl tracking-wide">
+                PLAY NOW!
             </button>
+            <a href="https://docs.google.com/document/d/1MB1qxyozjjrFZjJQjFHaOSWemhVNZhacvYfFyc_2_W8/edit?usp=sharing" target="_blank" class="btn-how-to w-1/2 py-2 text-white font-bold rounded-full text-sm shadow-lg flex items-center justify-center">
+                How To Play
+            </a>
+            <div class="mt-1 text-white/90 text-[10px] font-bold bg-black/30 px-3 py-0.5 rounded-full backdrop-blur-sm">
+                (ระบบจะขออนุญาตใช้กล้อง)
+            </div>
         </div>
-        <div id="loading-spinner" class="hidden flex-col items-center">
-            <div class="animate-spin rounded-full h-24 w-24 border-b-4 border-lime-500 mb-6"></div>
-            <h2 class="text-2xl font-bold mb-2 text-lime-700">กำลังโหลด...</h2>
+        <div id="loading-spinner" class="hidden flex-col items-center bg-white/80 p-6 rounded-2xl backdrop-blur-md absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+            <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-lime-600 mb-4"></div>
+            <h2 class="text-xl font-bold text-lime-800">กำลังเข้าสู่ป่า...</h2>
         </div>
     </div>
 
-    <!-- Main App Layout -->
+    <!-- 🎮 Main Game Area -->
     <div class="flex h-full w-full max-w-7xl mx-auto bg-white shadow-2xl overflow-hidden rounded-xl my-2 border-4 border-lime-200" style="min-height: 500px;">
-        <!-- Left Panel -->
+        <!-- Left Panel: Game Board & Info -->
         <div class="flex-1 bg-lime-50 relative flex flex-col p-4 border-r-4 border-lime-200">
+            
+            <!-- Header & Controls -->
             <div class="bg-white p-3 rounded-2xl shadow-sm border border-lime-100 mb-2">
                 <div class="flex justify-between items-center mb-2">
                     <h1 class="text-xl font-bold text-lime-800 flex items-center gap-2">
@@ -94,13 +153,26 @@
                         <button onclick="resetLevel()" class="px-3 py-1 bg-slate-400 hover:bg-slate-500 rounded-lg text-white text-xs transition font-bold"><i class="fas fa-undo mr-1"></i>เริ่มใหม่</button>
                     </div>
                 </div>
-                <div class="level-scroll-container px-1 py-2 flex items-center" id="level-map"></div>
+                
+                <!-- Story Display Area -->
+                <div id="story-panel" class="story-box p-2 mb-2 rounded shadow-inner hidden">
+                    <div class="flex items-start gap-2">
+                        <div class="text-2xl">🐿️</div>
+                        <div>
+                            <p id="story-en" class="text-xs font-bold text-amber-700 font-mono leading-tight mb-1"></p>
+                            <p id="story-th" class="text-sm text-slate-700 leading-tight"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="level-scroll-container px-1 py-1 flex items-center" id="level-map"></div>
             </div>
 
+            <!-- Teacher Tools (Hidden by default) -->
             <div id="editor-toolbar" class="hidden bg-purple-50 p-2 rounded-xl border-2 border-purple-200 mb-2 flex items-center justify-between animate-fade-in">
                 <div class="flex items-center gap-2">
                     <span class="text-xs font-bold text-purple-700 mr-2">เครื่องมือ:</span>
-                    <button onclick="selectTool('START')" id="tool-start" class="tool-btn w-10 h-10 rounded-lg border-2 border-transparent bg-white hover:bg-slate-50 flex items-center justify-center shadow-sm text-xl">🐿️</button>
+                    <button onclick="selectTool('START')" id="tool-start" class="tool-btn w-10 h-10 rounded-lg border-2 border-transparent bg-white hover:bg-slate-50 flex items-center justify-center shadow-sm text-xl">📍</button>
                     <button onclick="selectTool('NUT')" id="tool-nut" class="tool-btn w-10 h-10 rounded-lg border-2 border-transparent bg-white hover:bg-slate-50 flex items-center justify-center shadow-sm text-xl">🌰</button>
                     <button onclick="selectTool('OBSTACLE')" id="tool-obstacle" class="tool-btn active w-10 h-10 rounded-lg border-2 border-transparent bg-white hover:bg-slate-50 flex items-center justify-center shadow-sm text-xl">🪨</button>
                     <button onclick="selectTool('ERASE')" id="tool-erase" class="tool-btn w-10 h-10 rounded-lg border-2 border-transparent bg-white hover:bg-slate-50 flex items-center justify-center shadow-sm text-xl text-red-500">❌</button>
@@ -110,6 +182,7 @@
                 </div>
             </div>
 
+            <!-- Game Grid -->
             <div class="flex-1 flex items-center justify-center p-2 relative">
                  <button id="run-btn" onclick="runCode()" class="absolute top-0 right-0 z-20 px-6 py-2 bg-gradient-to-r from-lime-500 to-green-600 hover:from-lime-600 hover:to-green-700 text-white font-bold rounded-xl shadow-lg transform hover:scale-105 transition disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"><i class="fas fa-play mr-2"></i>RUN!</button>
                 <div id="game-board-frame" class="bg-white p-4 rounded-3xl shadow-xl border-4 border-green-200 relative transition-colors duration-300">
@@ -118,6 +191,8 @@
                     <div id="editor-overlay-text" class="hidden absolute -top-3 left-1/2 transform -translate-x-1/2 bg-purple-600 text-white text-xs px-3 py-1 rounded-full shadow-md z-30 font-bold">โหมดแก้ไข</div>
                     <div id="grid-container" class="grid gap-2 relative transition-all duration-300 z-10"></div>
                 </div>
+                
+                <!-- Win Screen -->
                 <div id="win-overlay" class="absolute inset-0 z-30 bg-black/60 flex flex-col items-center justify-center hidden backdrop-blur-sm rounded-xl">
                     <div class="bg-white p-8 rounded-3xl text-center animate-bounce-sm shadow-2xl border-4 border-yellow-300 relative overflow-hidden max-w-sm w-full mx-4">
                         <h2 class="text-4xl font-bold text-green-600 mb-2">ผ่านด่าน! 🎉</h2>
@@ -131,16 +206,18 @@
             </div>
         </div>
 
-        <!-- Right Panel -->
+        <!-- Right Panel: Camera & Code -->
         <div class="w-80 md:w-96 bg-lime-100 flex flex-col relative border-l border-lime-200">
+            <!-- Camera Feed -->
             <div class="relative w-full aspect-video bg-gray-900 border-b-4 border-lime-300 overflow-hidden group shadow-md">
                 <video id="webcam" class="absolute inset-0 w-full h-full object-cover -z-10 opacity-0" autoplay playsinline muted></video>
                 <canvas id="output-canvas" class="w-full h-full object-cover mirror-mode"></canvas>
                 
+                <!-- Camera Feedback UI -->
                 <div id="camera-feedback-overlay" class="absolute inset-0 flex items-center justify-center pointer-events-none">
                     <div id="gesture-feedback" class="text-center transform transition-all duration-200 opacity-0 scale-50">
                         <div class="relative w-24 h-24 flex items-center justify-center bg-white/20 backdrop-blur-md rounded-full shadow-lg">
-                            <svg class="absolute inset-0 w-full h-full transform -rotate-90"><circle cx="48" cy="48" r="40" stroke="rgba(255,255,255,0.4)" stroke-width="6" fill="none"/><circle id="detect-progress" cx="48" cy="48" r="40" stroke="#bef264" stroke-width="6" fill="none" stroke-dasharray="251.2" stroke-dashoffset="251.2" class="detect-ring"/></svg>
+                            <svg class="absolute inset-0 w-full h-full transform -rotate-90"><circle cx="48" cy="48" r="40" stroke="rgba(255,255,255,0.4)" stroke-width="6" fill="none"/><circle id="detect-progress" cx="48" cy="48" r="40" stroke="#ef4444" stroke-width="8" fill="none" stroke-dasharray="251.2" stroke-dashoffset="251.2" class="detect-ring"/></svg>
                             <span id="gesture-icon" class="text-5xl drop-shadow-md">⬆️</span>
                         </div>
                         <div id="gesture-text" class="text-lg font-bold text-lime-900 mt-2 bg-white/90 px-3 py-1 rounded-full shadow-sm inline-block">เดินหน้า</div>
@@ -150,7 +227,7 @@
                     <i id="camera-status-icon" class="fas fa-video mr-1"></i><span id="camera-status-text">Camera</span>
                 </div>
 
-                <!-- Manual Control Overlay -->
+                <!-- Manual Mode Fallback -->
                 <div id="manual-control-overlay" class="absolute inset-0 bg-lime-50 z-20 hidden flex-col items-center justify-center p-2">
                     <div class="text-xs text-red-500 font-bold mb-2 bg-red-100 px-2 py-1 rounded text-center w-full">
                         <i class="fas fa-video-slash mr-1"></i>ใช้โหมดปุ่มกด (Sites Blocked Camera)
@@ -173,6 +250,7 @@
                 </div>
             </div>
 
+            <!-- Gesture Guide -->
             <div class="bg-lime-200 px-2 py-2 text-center shadow-inner">
                 <div class="grid grid-cols-2 gap-1 text-[10px] md:text-xs text-lime-900 font-semibold text-left p-1">
                     <div class="bg-white/60 px-2 py-1 rounded flex items-center gap-1"><i class="fas fa-hand-point-up text-blue-600"></i> 1 นิ้ว = ทิศทาง</div>
@@ -183,6 +261,7 @@
                 </div>
             </div>
 
+            <!-- Command Queue -->
             <div class="flex-1 p-2 overflow-y-auto bg-white/50 flex flex-col">
                 <div class="flex justify-between items-center mb-1">
                     <h3 class="text-lg font-bold text-lime-800">📜 โปรแกรม (<span id="cmd-count">0</span>/16)</h3>
@@ -199,30 +278,101 @@
     </div>
 
     <script>
+        // --- Security & Anti-Cheat ---
+        document.addEventListener('contextmenu', event => event.preventDefault()); 
+        document.onkeydown = function(e) {
+            if(e.keyCode == 123) return false;
+            if(e.ctrlKey && e.shiftKey && (e.keyCode == 'I'.charCodeAt(0) || e.keyCode == 'J'.charCodeAt(0))) return false;
+            if(e.ctrlKey && (e.keyCode == 'U'.charCodeAt(0) || e.keyCode == 'S'.charCodeAt(0))) { e.preventDefault(); return false; }
+        }
+        
         const CONFIG = { detectionThreshold: 1500, maxCommands: 16 };
+        const CHARACTER_IMAGE_URL = "https://img5.pic.in.th/file/secure-sv1/8daa4219524794e2a66152afed3ca6bb.png";
+        
         let useSynth = false; 
         
+        // --- LEVEL DATA WITH STORIES (ALL 4x4) ---
         let LEVELS = [
-            { id: 1, width: 4, height: 4, start: {x: 0, y: 1}, targets: [{x: 3, y: 1}], obstacles: [] },
-            { id: 2, width: 4, height: 4, start: {x: 0, y: 3}, targets: [{x: 2, y: 1}], obstacles: [{x: 0, y: 1}, {x: 1, y: 1}] },
-            { id: 3, width: 4, height: 4, start: {x: 0, y: 0}, targets: [{x: 2, y: 2}], obstacles: [{x: 1, y: 0}, {x: 0, y: 2}, {x: 2, y: 1}] },
-            { id: 4, width: 5, height: 4, start: {x: 0, y: 2}, targets: [{x: 4, y: 2}], obstacles: [{x: 2, y: 1}, {x: 2, y: 2}, {x: 2, y: 3}] },
-            { id: 5, width: 5, height: 5, start: {x: 0, y: 0}, targets: [{x: 4, y: 4}], obstacles: [{x: 1, y: 1}, {x: 2, y: 2}, {x: 3, y: 3}, {x: 0, y: 4}, {x: 4, y: 0}] },
-            { id: 6, width: 5, height: 5, start: {x: 2, y: 4}, targets: [{x: 2, y: 0}], obstacles: [{x: 2, y: 3}, {x: 1, y: 2}, {x: 3, y: 2}, {x: 2, y: 1}] },
-            { id: 7, width: 5, height: 5, start: {x: 0, y: 0}, targets: [{x: 4, y: 0}], obstacles: [{x: 1, y: 0}, {x: 2, y: 0}, {x: 3, y: 0}, {x: 1, y: 2}, {x: 2, y: 2}, {x: 3, y: 2}] },
-            { id: 8, width: 5, height: 5, start: {x: 0, y: 4}, targets: [{x: 4, y: 0}], obstacles: [{x: 0, y: 3}, {x: 1, y: 4}, {x: 2, y: 2}, {x: 3, y: 1}, {x: 4, y: 2}] },
-            { id: 9, width: 5, height: 5, start: {x: 2, y: 2}, targets: [{x: 4, y: 2}], obstacles: [{x: 3, y: 2}, {x: 3, y: 3}, {x: 2, y: 3}, {x: 1, y: 3}, {x: 1, y: 2}, {x: 1, y: 1}, {x: 2, y: 1}, {x: 3, y: 1}] },
-            { id: 10, width: 5, height: 5, start: {x: 0, y: 4}, targets: [{x: 4, y: 0}], obstacles: [{x: 0, y: 3}, {x: 1, y: 3}, {x: 2, y: 1}, {x: 3, y: 1}, {x: 3, y: 2}, {x: 4, y: 3}] },
-            { id: 11, width: 5, height: 5, start: {x: 2, y: 2}, targets: [{x: 0, y: 0}, {x: 4, y: 4}], obstacles: [] },
-            { id: 12, width: 5, height: 5, start: {x: 0, y: 2}, targets: [{x: 4, y: 0}, {x: 4, y: 4}], obstacles: [{x: 2, y: 1}, {x: 2, y: 2}, {x: 2, y: 3}] },
-            { id: 13, width: 5, height: 5, start: {x: 0, y: 0}, targets: [{x: 0, y: 4}, {x: 4, y: 0}], obstacles: [{x: 1, y: 1}, {x: 2, y: 2}, {x: 3, y: 3}] },
-            { id: 14, width: 5, height: 5, start: {x: 2, y: 4}, targets: [{x: 0, y: 2}, {x: 4, y: 2}], obstacles: [{x: 2, y: 3}, {x: 2, y: 2}, {x: 2, y: 1}] },
-            { id: 15, width: 5, height: 5, start: {x: 0, y: 0}, targets: [{x: 2, y: 2}, {x: 4, y: 4}], obstacles: [{x: 0, y: 1}, {x: 3, y: 4}] },
-            { id: 16, width: 5, height: 5, start: {x: 2, y: 2}, targets: [{x: 0, y: 0}, {x: 0, y: 4}], obstacles: [{x: 1, y: 1}, {x: 1, y: 3}, {x: 3, y: 2}] },
-            { id: 17, width: 5, height: 5, start: {x: 0, y: 4}, targets: [{x: 2, y: 0}, {x: 4, y: 4}], obstacles: [{x: 0, y: 3}, {x: 1, y: 2}, {x: 3, y: 2}, {x: 4, y: 3}] },
-            { id: 18, width: 5, height: 5, start: {x: 4, y: 2}, targets: [{x: 0, y: 0}, {x: 0, y: 4}], obstacles: [{x: 3, y: 2}, {x: 2, y: 2}, {x: 1, y: 1}, {x: 1, y: 3}] },
-            { id: 19, width: 5, height: 5, start: {x: 2, y: 2}, targets: [{x: 2, y: 0}, {x: 2, y: 4}], obstacles: [{x: 1, y: 1}, {x: 3, y: 1}, {x: 1, y: 3}, {x: 3, y: 3}] },
-            { id: 20, width: 5, height: 5, start: {x: 0, y: 0}, targets: [{x: 4, y: 0}, {x: 4, y: 4}], obstacles: [{x: 1, y: 0}, {x: 3, y: 0}, {x: 2, y: 2}, {x: 1, y: 4}, {x: 3, y: 4}] }
+            { 
+                id: 1, width: 4, height: 4, start: {x: 0, y: 1}, targets: [{x: 3, y: 1}], obstacles: [],
+                story: { en: "Let's warm up! Walk straight to the acorn.", th: "วอร์มอัพกันหน่อย! เดินตรงไปหาลูกโอ๊คเลย" }
+            },
+            { 
+                id: 2, width: 4, height: 4, start: {x: 0, y: 3}, targets: [{x: 2, y: 1}], obstacles: [{x: 0, y: 1}, {x: 1, y: 1}],
+                story: { en: "A turn ahead! Look where you are facing.", th: "ทางเลี้ยวข้างหน้า! ดูทิศทางให้ดีก่อนเลี้ยวนะ" }
+            },
+            { 
+                id: 3, width: 4, height: 4, start: {x: 0, y: 0}, targets: [{x: 2, y: 2}], obstacles: [{x: 1, y: 0}, {x: 0, y: 2}, {x: 2, y: 1}],
+                story: { en: "Oh no! A big rock. We need to go around it.", th: "โอ๊ะโอ! หินก้อนใหญ่ขวางทาง เราต้องอ้อมมันไป" }
+            },
+            { 
+                id: 4, width: 4, height: 4, start: {x: 0, y: 2}, targets: [{x: 3, y: 2}], obstacles: [{x: 2, y: 1}, {x: 2, y: 2}, {x: 2, y: 3}], 
+                story: { en: "Zig-Zag path! Don't get dizzy, Cody.", th: "ทางคดเคี้ยวจัง! ระวังเวียนหัวนะโคดี้" }
+            },
+            { 
+                id: 5, width: 4, height: 4, start: {x: 0, y: 0}, targets: [{x: 3, y: 3}], obstacles: [{x: 1, y: 1}, {x: 2, y: 2}, {x: 0, y: 3}, {x: 3, y: 0}],
+                story: { en: "Leaving home. Elder says: Use your Logic!", th: "ออกจากหมู่บ้านแล้ว ผู้เฒ่าบอกว่า: จงใช้ตรรกะ!" }
+            },
+            { 
+                id: 6, width: 4, height: 4, start: {x: 1, y: 3}, targets: [{x: 1, y: 0}], obstacles: [{x: 1, y: 2}, {x: 0, y: 1}, {x: 2, y: 1}],
+                story: { en: "Into the dark woods. Watch your step!", th: "เข้าสู่ป่าทึบ เดินระวังๆ หน่อยนะ!" }
+            },
+            { 
+                id: 7, width: 4, height: 4, start: {x: 0, y: 0}, targets: [{x: 3, y: 0}], obstacles: [{x: 1, y: 0}, {x: 2, y: 0}, {x: 1, y: 1}, {x: 2, y: 1}], 
+                story: { en: "It's a long way! Use 'Repeat' to run faster.", th: "ทางยาวไกล! ใช้คำสั่ง 'ทำซ้ำ' เพื่อวิ่งให้ไวขึ้น" }
+            },
+            { 
+                id: 8, width: 4, height: 4, start: {x: 0, y: 3}, targets: [{x: 3, y: 0}], obstacles: [{x: 2, y: 0}, {x: 2, y: 1}, {x: 2, y: 2}],
+                story: { en: "Mr. Owl is sleeping. Shh... be quiet.", th: "คุณลุงนกฮูกกำลังหลับ ชู่ว... เงียบๆ นะ" }
+            },
+            { 
+                id: 9, width: 4, height: 4, start: {x: 0, y: 0}, targets: [{x: 3, y: 3}], obstacles: [{x: 1, y: 0}, {x: 1, y: 1}, {x: 1, y: 2}, {x: 3, y: 2}],
+                story: { en: "Confusing maze! Try not to get lost.", th: "เขาวงกตงงงวย! พยายามอย่าหลงทางนะ" }
+            },
+            { 
+                id: 10, width: 4, height: 4, start: {x: 0, y: 3}, targets: [{x: 3, y: 0}], obstacles: [{x: 1, y: 3}, {x: 1, y: 2}, {x: 2, y: 1}, {x: 3, y: 2}],
+                story: { en: "Logs everywhere. Hop over or go around?", th: "ท่อนซุงเต็มไปหมด จะข้ามหรือจะอ้อมดี?" }
+            },
+            { 
+                id: 11, width: 4, height: 4, start: {x: 1, y: 1}, targets: [{x: 0, y: 0}, {x: 3, y: 3}], obstacles: [{x: 2, y: 2}],
+                story: { en: "Hello Beaver! He blocked the path. Find a new way!", th: "ไงบีเวอร์! เขาสร้างเขื่อนขวางทาง หาทางใหม่เร็ว" }
+            },
+            { 
+                id: 12, width: 4, height: 4, start: {x: 0, y: 1}, targets: [{x: 3, y: 1}, {x: 3, y: 3}], obstacles: [{x: 2, y: 1}, {x: 2, y: 2}],
+                story: { en: "I see a pattern here. Use a Loop!", th: "ฉันเห็นรูปแบบซ้ำๆ นะ ใช้ Loop สิ!" }
+            },
+            { 
+                id: 13, width: 4, height: 4, start: {x: 0, y: 0}, targets: [{x: 0, y: 3}, {x: 3, y: 0}], obstacles: [{x: 1, y: 1}, {x: 2, y: 2}],
+                story: { en: "Slippery mud! Don't slide into rocks.", th: "โคลนลื่นมาก! ระวังไถลไปชนหินนะ" }
+            },
+            { 
+                id: 14, width: 4, height: 4, start: {x: 1, y: 3}, targets: [{x: 0, y: 1}, {x: 3, y: 1}], obstacles: [{x: 1, y: 2}, {x: 2, y: 2}],
+                story: { en: "Big Bear wants to see your coding dance!", th: "พี่หมีใหญ่อยากเห็นท่าเต้นเขียนโค้ดของเธอ!" }
+            },
+            { 
+                id: 15, width: 4, height: 4, start: {x: 0, y: 0}, targets: [{x: 2, y: 2}, {x: 3, y: 3}], obstacles: [{x: 1, y: 1}, {x: 0, y: 1}],
+                story: { en: "Pretty flowers! Don't step on them.", th: "ดอกไม้สวยจัง! อย่าเผลอไปเหยียบเข้านะ" }
+            },
+            { 
+                id: 16, width: 4, height: 4, start: {x: 2, y: 2}, targets: [{x: 0, y: 0}, {x: 0, y: 3}], obstacles: [{x: 1, y: 1}, {x: 1, y: 2}],
+                story: { en: "Climbing up the mountain. Keep going!", th: "กำลังปีนขึ้นเขาแล้ว สู้ต่อไปนะ!" }
+            },
+            { 
+                id: 17, width: 4, height: 4, start: {x: 0, y: 3}, targets: [{x: 2, y: 0}, {x: 3, y: 3}], obstacles: [{x: 0, y: 2}, {x: 1, y: 1}, {x: 2, y: 1}],
+                story: { en: "Brrr! Snowflakes. Stay warm with code.", th: "บรึ๋ย! หิมะตกแล้ว ใช้โค้ดสร้างความอบอุ่นเร็ว" }
+            },
+            { 
+                id: 18, width: 4, height: 4, start: {x: 3, y: 2}, targets: [{x: 0, y: 0}, {x: 0, y: 3}], obstacles: [{x: 2, y: 2}, {x: 1, y: 1}, {x: 1, y: 2}],
+                story: { en: "The Maze Guardian is watching. Be careful.", th: "ผู้พิทักษ์เขาวงกตกำลังจ้องมองอยู่ ระวังตัวด้วย" }
+            },
+            { 
+                id: 19, width: 4, height: 4, start: {x: 1, y: 1}, targets: [{x: 1, y: 0}, {x: 1, y: 3}], obstacles: [{x: 0, y: 1}, {x: 2, y: 1}, {x: 2, y: 2}],
+                story: { en: "I see the Golden Acorn Tree! Almost there!", th: "เห็นต้นโอ๊คทองคำแล้ว! อีกนิดเดียว!" }
+            },
+            { 
+                id: 20, width: 4, height: 4, start: {x: 0, y: 0}, targets: [{x: 3, y: 0}, {x: 3, y: 3}], obstacles: [{x: 1, y: 0}, {x: 2, y: 0}, {x: 1, y: 2}, {x: 2, y: 2}, {x: 0, y: 2}],
+                story: { en: "Victory! We saved the village! Party time!", th: "สำเร็จ! เราช่วยหมู่บ้านได้แล้ว! ฉลองกันเลย!" }
+            }
         ];
 
         let state = {
@@ -244,6 +394,7 @@
             manualMode: false
         };
 
+        // DOM Elements
         const gridContainer = document.getElementById('grid-container');
         const cmdList = document.getElementById('command-list');
         const gestureFeedback = document.getElementById('gesture-feedback');
@@ -257,6 +408,9 @@
         const editorOverlayText = document.getElementById('editor-overlay-text');
         const manualControlOverlay = document.getElementById('manual-control-overlay');
         const bgmAudio = document.getElementById('bgm-audio');
+        const storyPanel = document.getElementById('story-panel');
+        const storyEn = document.getElementById('story-en');
+        const storyTh = document.getElementById('story-th');
 
         const circumference = detectProgress.r.baseVal.value * 2 * Math.PI;
         detectProgress.style.strokeDasharray = `${circumference} ${circumference}`;
@@ -272,6 +426,7 @@
             state.isExecuting = false;
             state.isLevelComplete = false;
             
+            // Set facing based on start position
             if (state.squirrelPos.x === 0) state.facing = 'right';
             else if (state.squirrelPos.x === level.width - 1) state.facing = 'left';
             else state.facing = (level.start.x < level.width / 2) ? 'right' : 'left';
@@ -281,6 +436,15 @@
             document.getElementById('run-btn').disabled = false;
             editorToggleBtn.disabled = false;
             editorToggleBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+
+            // --- Story Update ---
+            if (level.story) {
+                storyPanel.classList.remove('hidden');
+                storyEn.innerText = level.story.en;
+                storyTh.innerText = level.story.th;
+            } else {
+                storyPanel.classList.add('hidden');
+            }
 
             if (level.targets.length > 1) {
                 targetCounter.classList.remove('hidden');
@@ -311,7 +475,7 @@
                 const dot = document.createElement('div');
                 dot.className = `level-dot ${index === state.currentLevelIdx ? 'active' : ''} ${index < state.currentLevelIdx ? 'passed' : ''}`;
                 dot.onclick = () => { if (!state.isExecuting) { playSound('click'); initLevel(index); } };
-                if (index === state.currentLevelIdx) dot.innerHTML = '🐿️';
+                if (index === state.currentLevelIdx) dot.innerHTML = '📍';
                 else if (index < state.currentLevelIdx) dot.innerHTML = '✅';
                 else dot.innerHTML = level.id;
                 levelMapContainer.appendChild(dot);
@@ -341,7 +505,9 @@
 
                     if (isObstacle) {
                         cell.classList.add('bg-stone-300', 'border-stone-500');
-                        const decor = (x+y)%2 === 0 ? '🪨' : '🪵';
+                        // Randomize obstacle appearance deterministically based on position
+                        const obsTypes = ['🪨', '🪵', '🌳'];
+                        const decor = obsTypes[(x + y * 3) % obsTypes.length]; 
                         cell.innerHTML = `<span class="text-3xl drop-shadow-md select-none pointer-events-none">${decor}</span>`;
                     } else {
                         cell.classList.add('bg-grass', 'border-lime-600');
@@ -360,16 +526,25 @@
                     }
                     const facingClass = state.facing === 'right' ? 'facing-right' : 'facing-left';
                     if (state.isEditorMode) {
-                         if (isStart) cell.innerHTML += `<div class="absolute inset-0 flex items-center justify-center z-20 pointer-events-none opacity-50 grayscale"><span class="text-3xl drop-shadow-2xl select-none ${facingClass}" style="display:inline-block">🐿️</span></div>`;
+                         if (isStart) {
+                             cell.innerHTML += `
+                                <div class="absolute inset-0 flex items-center justify-center z-20 pointer-events-none opacity-50 grayscale">
+                                    <div class="w-4/5 h-4/5 ${facingClass}">
+                                        <img src="${CHARACTER_IMAGE_URL}" class="character-img" alt="Start">
+                                    </div>
+                                </div>`;
+                         }
                     } else {
                          if (state.squirrelPos.x === x && state.squirrelPos.y === y) {
                             const squirrelWrapper = document.createElement('div');
-                            squirrelWrapper.className = "absolute inset-0 flex items-center justify-center squirrel-container z-20 pointer-events-none";
+                            squirrelWrapper.className = "absolute inset-0 flex items-center justify-center squirrel-container z-20 pointer-events-none m-auto"; 
                             const squirrelBody = document.createElement('div');
                             squirrelBody.className = `squirrel-body animate-bob select-none`;
                             const squirrelInner = document.createElement('span');
                             squirrelInner.className = `squirrel-inner ${facingClass}`;
-                            squirrelInner.innerText = '🐿️';
+                            
+                            squirrelInner.innerHTML = `<img src="${CHARACTER_IMAGE_URL}" class="character-img" alt="Player">`;
+                            
                             squirrelBody.appendChild(squirrelInner);
                             squirrelWrapper.appendChild(squirrelBody);
                             cell.appendChild(squirrelWrapper);
@@ -390,6 +565,7 @@
                 editorToggleBtn.classList.replace('hover:bg-purple-600', 'hover:bg-green-700');
                 gameBoardFrame.classList.replace('border-green-200', 'border-purple-300');
                 editorOverlayText.classList.remove('hidden');
+                storyPanel.classList.add('hidden'); // Hide story in editor
                 const level = LEVELS[state.currentLevelIdx];
                 state.squirrelPos = {...level.start};
                 state.collectedTargets = [];
@@ -512,12 +688,16 @@
         }
 
         async function runCode() {
+            // ✅ GUARD CLAUSE: ป้องกันการกดซ้ำขณะทำงาน
+            if (state.isExecuting) return;
+
             ensureAudioContext();
             if (state.isEditorMode) { alert("กรุณาออกจากโหมดครูก่อนเริ่มเล่น"); return; }
             if (state.commands.length === 0) return;
             
             try {
                 state.isExecuting = true;
+                // ปิดปุ่มทันที
                 document.getElementById('run-btn').disabled = true;
                 if(state.manualMode) document.querySelector('button[onclick="manualInput(\'RUN\')"]').disabled = true;
                 editorToggleBtn.disabled = true;
@@ -614,21 +794,17 @@
         function resetLevel() { ensureAudioContext(); initLevel(state.currentLevelIdx); }
         function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-        // --- Manual Input Mode ---
         function activateManualMode() {
             console.warn("Camera failed. Switching to Manual Mode.");
             state.manualMode = true;
             document.getElementById('start-btn-container').classList.add('hidden');
             document.getElementById('loading-spinner').classList.add('hidden');
             document.getElementById('loading-screen').classList.add('hidden');
-            
-            // Show manual UI
             manualControlOverlay.classList.remove('hidden');
             manualControlOverlay.style.display = 'flex';
             document.getElementById('camera-status-text').innerText = "Manual Mode";
             document.getElementById('camera-status-icon').className = "fas fa-keyboard mr-1";
             document.getElementById('camera-feedback-overlay').classList.add('hidden');
-            
             initLevel(0);
         }
 
@@ -642,17 +818,15 @@
             }
         }
 
-        // --- Audio & Vision ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         
         function ensureAudioContext() { 
             if (audioCtx.state === 'suspended') audioCtx.resume(); 
-            // Fix: Check if synth is needed before starting loop
             if (state.isMusicPlaying) {
-                if (useSynth) {
-                    if (!state.musicInterval) startMusicLoop();
-                } else {
-                    if (bgmAudio.paused) playBackgroundMusic();
+                if (!useSynth && bgmAudio.paused) {
+                    playBackgroundMusic();
+                } else if (useSynth && !state.musicInterval) {
+                    startMusicLoop();
                 }
             }
         }
@@ -660,79 +834,26 @@
         function playSound(type) {
             if (audioCtx.state === 'suspended') audioCtx.resume();
             const now = audioCtx.currentTime;
-            
-            // Common nodes
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.connect(gain);
             gain.connect(audioCtx.destination);
 
-            if (type === 'pop') { // Coin/Collect Sound - "Ding!"
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(1200, now);
-                osc.frequency.exponentialRampToValueAtTime(2000, now + 0.1);
-                gain.gain.setValueAtTime(0.3, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-                osc.start(now);
-                osc.stop(now + 0.3);
-                
-                // Add a second harmonic for sparkle
-                const osc2 = audioCtx.createOscillator();
-                const gain2 = audioCtx.createGain();
-                osc2.connect(gain2);
-                gain2.connect(audioCtx.destination);
-                osc2.type = 'triangle';
-                osc2.frequency.setValueAtTime(2400, now);
-                gain2.gain.setValueAtTime(0.1, now);
-                gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-                osc2.start(now);
-                osc2.stop(now + 0.3);
-
-            } else if (type === 'jump') { // Move Sound - "Bloop"
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(300, now);
-                osc.frequency.linearRampToValueAtTime(500, now + 0.1);
-                gain.gain.setValueAtTime(0.2, now);
-                gain.gain.linearRampToValueAtTime(0, now + 0.15);
-                osc.start(now);
-                osc.stop(now + 0.15);
-
-            } else if (type === 'bump') { // Obstacle - "Thud"
-                osc.type = 'square';
-                osc.frequency.setValueAtTime(150, now);
-                osc.frequency.exponentialRampToValueAtTime(40, now + 0.2);
-                gain.gain.setValueAtTime(0.2, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
-                osc.start(now);
-                osc.stop(now + 0.2);
-
-            } else if (type === 'click') { // UI Click
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(800, now);
-                gain.gain.setValueAtTime(0.1, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
-                osc.start(now);
-                osc.stop(now + 0.05);
-
-            } else if (type === 'error') { // Error - "Buzz"
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(150, now);
-                osc.frequency.linearRampToValueAtTime(100, now + 0.3);
-                gain.gain.setValueAtTime(0.2, now);
-                gain.gain.linearRampToValueAtTime(0, now + 0.3);
-                osc.start(now);
-                osc.stop(now + 0.3);
+            if (type === 'pop') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(1200, now); osc.frequency.exponentialRampToValueAtTime(2000, now + 0.1); gain.gain.setValueAtTime(0.3, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3); osc.start(now); osc.stop(now + 0.3);
+                const osc2 = audioCtx.createOscillator(); const gain2 = audioCtx.createGain(); osc2.connect(gain2); gain2.connect(audioCtx.destination); osc2.type = 'triangle'; osc2.frequency.setValueAtTime(2400, now); gain2.gain.setValueAtTime(0.1, now); gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.3); osc2.start(now); osc2.stop(now + 0.3);
+            } else if (type === 'jump') {
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(300, now); osc.frequency.linearRampToValueAtTime(500, now + 0.1); gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now + 0.15); osc.start(now); osc.stop(now + 0.15);
+            } else if (type === 'bump') {
+                osc.type = 'square'; osc.frequency.setValueAtTime(150, now); osc.frequency.exponentialRampToValueAtTime(40, now + 0.2); gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2); osc.start(now); osc.stop(now + 0.2);
+            } else if (type === 'click') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(800, now); gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05); osc.start(now); osc.stop(now + 0.05);
+            } else if (type === 'error') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, now); osc.frequency.linearRampToValueAtTime(100, now + 0.3); gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now + 0.3); osc.start(now); osc.stop(now + 0.3);
             }
         }
 
-        // Fun Melody
-        const MELODY_SEQ = [
-            // Happy Pentatonic Pattern
-            523.25, 0, 659.25, 0, 783.99, 0, 1046.50, 0, // C E G C
-            783.99, 0, 659.25, 0, 523.25, 0, 392.00, 0,  // G E C G
-            440.00, 0, 523.25, 0, 587.33, 0, 783.99, 0,  // A C D G
-            523.25, 523.25, 0, 0                         // C C
-        ];
+        const MELODY_SEQ = [ 523.25, 0, 659.25, 0, 783.99, 0, 1046.50, 0, 783.99, 0, 659.25, 0, 523.25, 0, 392.00, 0, 440.00, 0, 523.25, 0, 587.33, 0, 783.99, 0, 523.25, 523.25, 0, 0 ];
         
         function startMusicLoop() {
             if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -743,67 +864,46 @@
                 if (freq > 0) {
                     const osc = audioCtx.createOscillator();
                     const gain = audioCtx.createGain();
-                    osc.type = 'triangle'; // Softer, flute-like
-                    osc.connect(gain);
-                    gain.connect(audioCtx.destination);
+                    osc.type = 'triangle'; osc.connect(gain); gain.connect(audioCtx.destination);
                     const now = audioCtx.currentTime;
-                    
                     osc.frequency.value = freq;
-                    // Envelope for "plucky" sound
-                    gain.gain.setValueAtTime(0.05, now); // Lower volume for background
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-                    
-                    osc.start(now);
-                    osc.stop(now + 0.2);
+                    gain.gain.setValueAtTime(0.05, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                    osc.start(now); osc.stop(now + 0.2);
                 }
                 state.musicNoteIdx = (state.musicNoteIdx + 1) % MELODY_SEQ.length;
-            }, 200); // BPM Control
+            }, 200);
         }
 
-        // Win Fanfare
         function playMelody(type) {
              if (type === 'win') {
                 const now = audioCtx.currentTime;
-                // Arpeggio C Major
                 [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98].forEach((freq, i) => {
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-                    osc.connect(gain);
-                    gain.connect(audioCtx.destination);
-                    osc.type = 'square'; // 8-bit style
-                    osc.frequency.value = freq;
-                    
+                    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.connect(gain); gain.connect(audioCtx.destination);
+                    osc.type = 'square'; osc.frequency.value = freq;
                     const startTime = now + (i * 0.1);
-                    gain.gain.setValueAtTime(0.1, startTime);
-                    gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.3);
-                    
-                    osc.start(startTime);
-                    osc.stop(startTime + 0.3);
+                    gain.gain.setValueAtTime(0.1, startTime); gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.3);
+                    osc.start(startTime); osc.stop(startTime + 0.3);
                 });
              }
         }
 
         function playBackgroundMusic() {
             if (!state.isMusicPlaying) return;
-            
-            if (useSynth) {
+            bgmAudio.volume = 0.5;
+            bgmAudio.play().then(() => {
+                if (state.musicInterval) clearInterval(state.musicInterval);
+                useSynth = false;
+            }).catch(e => {
+                console.error("BGM load failed/blocked, switching to synth:", e);
+                useSynth = true;
                 startMusicLoop();
-            } else {
-                // Attempt to play MP3
-                bgmAudio.volume = 0.5; // Set volume to 50%
-                bgmAudio.play().catch(e => {
-                    console.error("BGM load failed, switching to synth:", e);
-                    useSynth = true;
-                    startMusicLoop();
-                });
-            }
+            });
         }
 
         function toggleMusic() {
             state.isMusicPlaying = !state.isMusicPlaying;
             const btn = document.getElementById('music-btn');
             
-            // Handle Custom MP3 Logic
             if (state.isMusicPlaying) {
                 btn.classList.replace('bg-pink-400', 'bg-green-500');
                 btn.innerHTML = '<i class="fas fa-volume-up"></i>';
@@ -818,11 +918,25 @@
         
         function stopMusicLoop() { if (state.musicInterval) clearInterval(state.musicInterval); state.musicInterval = null; }
 
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                bgmAudio.pause();
+                if (state.musicInterval) clearInterval(state.musicInterval);
+                if (audioCtx.state === 'running') audioCtx.suspend();
+            } else {
+                if (state.isMusicPlaying) {
+                    if (audioCtx.state === 'suspended') audioCtx.resume();
+                    playBackgroundMusic();
+                }
+            }
+        });
+
         function onResults(results) {
             if (!state.cameraActive) { state.cameraActive = true; document.getElementById('loading-screen').classList.add('hidden'); }
             const ctx = document.getElementById('output-canvas').getContext('2d');
             const canvas = document.getElementById('output-canvas');
             ctx.save(); ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+            
             if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
                 for (const landmarks of results.multiHandLandmarks) { drawConnectors(ctx, landmarks, HAND_CONNECTIONS, {color: '#bef264', lineWidth: 3}); drawLandmarks(ctx, landmarks, {color: '#84cc16', lineWidth: 1}); }
                 if (results.multiHandLandmarks.length === 2) {
@@ -831,10 +945,15 @@
                     const hand1Fist = isFist(results.multiHandLandmarks[0]);
                     const hand2Fist = isFist(results.multiHandLandmarks[1]);
                     if (hand1Open && hand2Open) {
-                        if (state.isLevelComplete) handleGestureConfirm('NEXT_LEVEL', '➡️', 'ด่านถัดไป'); else handleGestureConfirm('RUN', '🚀', 'เริ่มทำงาน (RUN)');
+                        if (state.isLevelComplete) {
+                             handleGestureConfirm('NEXT_LEVEL', '➡️', 'ด่านถัดไป');
+                        } else if (!state.isExecuting) { // ✅ เพิ่มเช็ค: ห้ามกด RUN ถ้ารันอยู่
+                             handleGestureConfirm('RUN', '🚀', 'เริ่มทำงาน (RUN)');
+                        }
                     } else if (hand1Fist && hand2Fist) { handleGestureConfirm('RESET', '🔄', 'เริ่มเกมใหม่'); } else { resetGestureTimer(); }
                 } 
                 else if (results.multiHandLandmarks.length === 1) {
+                    // ✅ เพิ่มเช็ค: ห้ามรับคำสั่งมือ ถ้ารันอยู่ (ยกเว้นกด Next Level ตอนชนะ)
                     if ((!state.isExecuting || state.isLevelComplete) && !state.isEditorMode) processGesture(results.multiHandLandmarks[0]);
                 }
             } else { resetGestureTimer(); }
@@ -890,7 +1009,6 @@
             document.getElementById('loading-spinner').classList.remove('hidden');
             document.getElementById('loading-spinner').style.display = 'flex';
             
-            // --- FIX: Trigger Audio Immediately ---
             if (audioCtx.state === 'suspended') {
                 audioCtx.resume();
             }
@@ -898,7 +1016,6 @@
             if (state.isMusicPlaying) {
                 playBackgroundMusic();
             }
-            // ---------------------------------------
 
             const videoElement = document.getElementById('webcam');
             const canvasElement = document.getElementById('output-canvas');
